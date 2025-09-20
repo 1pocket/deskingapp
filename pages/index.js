@@ -133,7 +133,7 @@ export default function Home() {
   const tradeEquity = Math.max(tradeAllowance - payoff, 0);
 
   // Fees & required package (included on all vehicles)
-  const [docFee, setDocFee] = useState(699);
+  const [docFee, setDocFee] = useState(799);
   const [titleFee, setTitleFee] = useState(89);
   const [tempTag, setTempTag] = useState(5);
   const [protectionPkgName] = useState("Victory Protection Package (included)");
