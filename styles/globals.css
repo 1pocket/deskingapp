@@ -39,27 +39,31 @@ tr.odd { @apply bg-gray-50/50; }
 
 /* ---------- Print styles (customer view only) ---------- */
 @media print {
-  /* Use US Letter and tighter margins */
-  @page { size: Letter; margin: 0.4in; }
+  /* Smaller page margins and Letter size */
+  @page { size: Letter; margin: 0.35in; }
 
-  /* Make the printable area compact */
+  /* Hide sections you mark as bulky */
+  .hide-on-print { display: none !important; }
+
+  /* Compact the printable area */
   #customer-print {
-    padding: 8px;                 /* was 20px */
+    padding: 6px;                 /* tighter padding */
+    line-height: 1.2;
   }
 
-  /* Slightly smaller typography in print */
+  /* Smaller fonts overall */
   #customer-print h1,
   #customer-print h2,
-  #customer-print h3 { font-size: 16px !important; }
+  #customer-print h3 { font-size: 15px !important; }
   #customer-print p,
-  #customer-print .text-sm { font-size: 12px !important; }
+  #customer-print .text-sm { font-size: 11px !important; }
 
-  /* Compact table */
-  #customer-print table { font-size: 11px; }
+  /* Compact tables */
+  #customer-print table { font-size: 10.5px; }
   #customer-print th,
-  #customer-print td { padding: 4px !important; }
+  #customer-print td { padding: 3px !important; }
 
-  /* Avoid awkward page breaks inside tables */
+  /* Prevent awkward breaks */
   #customer-print table,
   #customer-print thead,
   #customer-print tbody,
@@ -67,12 +71,17 @@ tr.odd { @apply bg-gray-50/50; }
   #customer-print td,
   #customer-print th { break-inside: avoid; page-break-inside: avoid; }
 
-  /* Footer: make it static so it doesn't push content to a new page */
-  .print-footer {
-    position: static;       /* was fixed */
-    margin-top: 8px;
-    font-size: 10.5px;
+  /* Make footer normal flow so it doesn't force a new page */
+  .print-footer { position: static; margin-top: 6px; font-size: 10px; }
+
+  /* Last resort: scale the whole section slightly to guarantee 1 page */
+  #customer-print {
+    transform: scale(0.92);              /* tweak between 0.90–0.95 if needed */
+    transform-origin: top left;
+    width: calc(100% / 0.92);
   }
+}
+
 
   /* If you *still* need a nudge, scale down a touch (uncomment below) */
   /*
