@@ -367,39 +367,40 @@ export default function Home() {
         </div>
 
         {/* CUSTOMER VIEW (print-optimized) */}
-        {showCustomerView && (
-          <div className="bg-white rounded-2xl shadow p-4 print:shadow-none print:rounded-none">
-            <h3 className="font-semibold">Customer View</h3>
-            <p className="text-sm text-gray-600">
-              We’ve prepared a few options using a price of <strong>${salePrice.toLocaleString()}</strong> and an APR of <strong>{aprPct}%</strong>. Figures are estimates.
-            </p>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left p-2 border-b">Term</th>
-                    {downs.map((d,i)=>(<th key={i} className="text-right p-2 border-b">${d.toLocaleString()} down</th>))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grid.map((row)=>(
-                    <tr key={row.months} className="odd:bg-gray-50/50">
-                      <td className="p-2 font-medium border-b">{row.months} months</td>
-                      {row.cells.map((c,i)=>(
-                        <td key={i} className="p-2 text-right tabular-nums border-b">
-                          ${c.payment.toLocaleString(undefined,{minimumFractionDigits:2})}/mo
-                          {showOTD && <div className="text-[11px] text-gray-500">Est. OTD ${c.otd.toLocaleString()}</div>}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+{showCustomerView && (
+  <div id="customer-print" className="bg-white rounded-2xl shadow p-4">
+    {/* Print-only Header */}
+    <div className="print-header">
+      <img
+        src="https://upload.wikimedia.org/wikipedia/commons/0/08/Honda_logo.png"
+        alt="Honda Logo"
+        style={{ height: "40px", marginBottom: "8px" }}
+      />
+      <h2 style={{ margin: 0 }}>Victory Honda of Jackson</h2>
+      <p style={{ margin: 0, fontSize: "13px" }}>
+        1408 Highway 45 Bypass • Jackson, TN 38305 • (731) 555-1234
+      </p>
+      <hr style={{ margin: "12px 0" }} />
     </div>
-  );
+
+    {/* Existing Customer View Content */}
+    <h3 className="font-semibold">Customer View</h3>
+    <p className="text-sm text-gray-600">
+      We’ve prepared a few options using a price of{" "}
+      <strong>${salePrice.toLocaleString()}</strong> and an APR of{" "}
+      <strong>{aprPct}%</strong>. Figures are estimates only.
+    </p>
+
+    {/* ... your existing table goes here ... */}
+
+    {/* Print-only Footer */}
+    <div className="print-footer">
+      * All figures are estimates only and subject to credit approval, equity
+      verification, and program rules. Taxes, fees, and addendums shown as of
+      current month. See dealer for complete details.
+    </div>
+  </div>
+)
 }
+
 
