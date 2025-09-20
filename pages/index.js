@@ -13,13 +13,13 @@ function pmt({ principal, aprPct, months }) {
 
 /* ---------- TAX (TN or Simple) ---------- */
 function tnSalesTax({
-  base,                 // taxable base
-  stateRate = 0.07,     // 7.00% state
-  localRate = 0.0275,   // up to 2.75% local
+  base,
+  stateRate = 0.07,
+  localRate = 0.0275,
   useSingleArticleCap = true,
-  localCapBase = 1600,  // local applies only to first $1,600
-  singleArticleRate = 0.0275, // 2.75% state single-article tax
-  singleArticleUpper = 3200,   // $1,600.01 - $3,200 range
+  localCapBase = 1600,
+  singleArticleRate = 0.0275,
+  singleArticleUpper = 3200,
 }) {
   if (base <= 0) return 0;
   const state = base * stateRate;
@@ -33,7 +33,7 @@ function tnSalesTax({
   return +(state + local + singleArticle).toFixed(2);
 }
 
-/* ---------- CUSTOMER TABLE (shared for screen + print) ---------- */
+/* ---------- SHARED TABLES ---------- */
 function CustomerGridTable({ downs, grid, showOTD }) {
   return (
     <div className="mt-3 overflow-x-auto">
@@ -70,30 +70,80 @@ function CustomerGridTable({ downs, grid, showOTD }) {
   );
 }
 
+function ProductMenuTable({ terms, scenarios, highlightFull = true }) {
+  const cols = [
+    { key: "base", label: "Base" },
+    { key: "maint", label: "+CarDoc Maint" },
+    { key: "connect", label: "+Connect+Theft" },
+    { key: "gap", label: "+GAP" },
+    { key: "vsc", label: "+VSC" },
+    { key: "full", label: "Full Protection" },
+  ];
+  return (
+    <div className="mt-4 overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            <th className="text-left p-2 border-b">Term</th>
+            {cols.map((c) => (
+              <th key={c.key} className="text-right p-2 border-b">{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {terms.map((m) => (
+            <tr key={m} className="odd:bg-gray-50/50">
+              <td className="p-2 font-medium border-b">{m} months</td>
+              {cols.map((c) => {
+                const cell = scenarios[m][c.key];
+                const isFull = c.key === "full";
+                return (
+                  <td
+                    key={c.key}
+                    className={`p-2 text-right tabular-nums border-b ${highlightFull && isFull ? "bg-yellow-50 font-semibold" : ""}`}
+                  >
+                    ${cell.payment.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
+                    <div className="text-[11px] text-gray-500">
+                      {c.key === "base" ? "Base" : `+${cell.delta.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo`}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ---------- MAIN UI ---------- */
 export default function Home() {
-  // Vehicle & program inputs (rep-facing)
-  const [salePrice, setSalePrice] = useState(34240); // example
+  // Vehicle & program inputs
+  const [salePrice, setSalePrice] = useState(34240);
   const [aprPct, setAprPct] = useState(6.99);
-  const [terms, setTerms] = useState([60, 72, 84]);      // rows
-  const [downs, setDowns] = useState([0, 1000, 2000]);   // columns
+  const [terms, setTerms] = useState([60, 72, 84]);    // rows
+  const [downs, setDowns] = useState([0, 1000, 2000]); // columns
+  const [menuDownIndex, setMenuDownIndex] = useState(1); // which Down to use for Product Menu (index into downs)
 
   // Deal structure
   const [rebate, setRebate] = useState(0);
   const [tradeAllowance, setTradeAllowance] = useState(0);
   const [payoff, setPayoff] = useState(0);
-  const tradeEquity = Math.max(tradeAllowance - payoff, 0); // negative equity handled below
+  const tradeEquity = Math.max(tradeAllowance - payoff, 0);
 
-  // Fees & addendums (admin would set defaults later)
+  // Fees & required package (included on all vehicles)
   const [docFee, setDocFee] = useState(699);
   const [titleFee, setTitleFee] = useState(89);
   const [tempTag, setTempTag] = useState(5);
+  const [protectionPkgName] = useState("Victory Protection Package (included)");
+  const [protectionPkgAmt] = useState(2998); // INCLUDED addendum
 
-  const [addendumRequiredName, setAddendumRequiredName] = useState("Protection Package");
-  const [addendumRequiredAmt, setAddendumRequiredAmt] = useState(2998);
-  const [addendumOptName, setAddendumOptName] = useState("Security Product");
-  const [addendumOptAmt, setAddendumOptAmt] = useState(1295);
-  const [addendumOptSelected, setAddendumOptSelected] = useState(true);
+  // Optional add-on products
+  const [carDocMaintAmt] = useState(1695);   // 5yr
+  const [carDocConnectAmt] = useState(1295); // 6yr + Anti-Theft
+  const [gapAmt] = useState(1198);
+  const [vscAmt] = useState(2998);
 
   // Tax settings
   const [isTNMode, setIsTNMode] = useState(true);
@@ -106,7 +156,6 @@ export default function Home() {
   const [showCustomerView, setShowCustomerView] = useState(true);
   const [showOTD, setShowOTD] = useState(true);
 
-  // Helpers to edit terms/downs inline
   function updateTerm(i, v) {
     const copy = [...terms];
     copy[i] = parseInt(v || 0) || 0;
@@ -118,13 +167,10 @@ export default function Home() {
     setDowns(copy);
   }
 
-  // Central calculation for a given cash down:
-  function buildCalc(cashDown) {
-    const optAdd = addendumOptSelected ? addendumOptAmt : 0;
-    const addendums = (addendumRequiredAmt || 0) + optAdd;
-
-    // Taxable base: price - trade credit + doc + addendums (TN taxes addendums)
-    const taxableBase = Math.max(salePrice - tradeAllowance, 0) + docFee + addendums;
+  // Base calc builder. extraAddons is total $ of selected optional products to finance.
+  function buildCalc(cashDown, extraAddons = 0) {
+    const addendumsIncluded = protectionPkgAmt; // always included
+    const taxableBase = Math.max(salePrice - tradeAllowance, 0) + docFee + addendumsIncluded + extraAddons;
 
     const taxes = isTNMode
       ? tnSalesTax({
@@ -136,31 +182,29 @@ export default function Home() {
         })
       : +(taxableBase * (stateRate + localRate)).toFixed(2);
 
-    // Amount Due (pre-finance): price + fees + addendums + taxes
-    const dueBeforeDowns = salePrice + docFee + titleFee + tempTag + addendums + taxes;
+    const dueBeforeDowns = salePrice + docFee + titleFee + tempTag + addendumsIncluded + extraAddons + taxes;
 
-    // Cap reductions: cash down + rebate + trade equity (if positive)
     const capReductions = (cashDown || 0) + (rebate || 0) + tradeEquity;
 
-    // Amount financed (cannot be < 0)
     const amountFinanced = Math.max(dueBeforeDowns - capReductions, 0);
 
-    // If payoff > tradeAllowance, that's negative equity; roll into amount financed
     const negativeEquity = Math.max(payoff - tradeAllowance, 0);
     const amountFinancedWithNE = amountFinanced + negativeEquity;
 
     return {
+      taxes,
       amountFinanced: +amountFinancedWithNE.toFixed(2),
       otdWithDown: +(dueBeforeDowns + negativeEquity - (cashDown || 0) - rebate - tradeEquity).toFixed(2),
     };
   }
 
+  // Original grid (terms × downs), BASE only (no optional add-ons)
   const grid = useMemo(() => {
     return terms.map((m) => {
       const cells = downs.map((d) => {
-        const c = buildCalc(d);
-        const pay = pmt({ principal: c.amountFinanced, aprPct, months: m });
-        return { down: d, months: m, payment: pay, amountFinanced: c.amountFinanced, otd: c.otdWithDown };
+        const base = buildCalc(d, 0);
+        const pay = pmt({ principal: base.amountFinanced, aprPct, months: m });
+        return { down: d, months: m, payment: pay, amountFinanced: base.amountFinanced, otd: base.otdWithDown };
       });
       return { months: m, cells };
     });
@@ -168,7 +212,53 @@ export default function Home() {
     salePrice, aprPct, terms, downs,
     rebate, tradeAllowance, payoff,
     docFee, titleFee, tempTag,
-    addendumRequiredAmt, addendumOptAmt, addendumOptSelected,
+    protectionPkgAmt,
+    isTNMode, tnCapEnabled, stateRate, localRate, singleArticleRate
+  ]);
+
+  // Product Menu scenarios for a chosen Down (downs[menuDownIndex])
+  const productMenu = useMemo(() => {
+    const down = downs[Math.min(menuDownIndex, Math.max(downs.length - 1, 0))] || 0;
+
+    // Precompute addon totals
+    const A_BASE = 0;
+    const A_MAINT = carDocMaintAmt;
+    const A_CONNECT = carDocConnectAmt;
+    const A_GAP = gapAmt;
+    const A_VSC = vscAmt;
+    const A_FULL = A_MAINT + A_CONNECT + A_GAP + A_VSC;
+
+    const byTerm = {};
+    terms.forEach((m) => {
+      const base = buildCalc(down, A_BASE);
+      const maint = buildCalc(down, A_MAINT);
+      const connect = buildCalc(down, A_CONNECT);
+      const gap = buildCalc(down, A_GAP);
+      const vsc = buildCalc(down, A_VSC);
+      const full = buildCalc(down, A_FULL);
+
+      const pBase = pmt({ principal: base.amountFinanced, aprPct, months: m });
+      const pMaint = pmt({ principal: maint.amountFinanced, aprPct, months: m });
+      const pConnect = pmt({ principal: connect.amountFinanced, aprPct, months: m });
+      const pGap = pmt({ principal: gap.amountFinanced, aprPct, months: m });
+      const pVsc = pmt({ principal: vsc.amountFinanced, aprPct, months: m });
+      const pFull = pmt({ principal: full.amountFinanced, aprPct, months: m });
+
+      byTerm[m] = {
+        base:   { payment: pBase,   delta: 0 },
+        maint:  { payment: pMaint,  delta: +(pMaint - pBase).toFixed(2) },
+        connect:{ payment: pConnect,delta: +(pConnect - pBase).toFixed(2) },
+        gap:    { payment: pGap,    delta: +(pGap - pBase).toFixed(2) },
+        vsc:    { payment: pVsc,    delta: +(pVsc - pBase).toFixed(2) },
+        full:   { payment: pFull,   delta: +(pFull - pBase).toFixed(2) },
+      };
+    });
+    return { down, byTerm, addonTotals: { A_MAINT, A_CONNECT, A_GAP, A_VSC, A_FULL } };
+  }, [
+    downs, menuDownIndex, terms, aprPct,
+    salePrice, rebate, tradeAllowance, payoff,
+    docFee, titleFee, tempTag, protectionPkgAmt,
+    carDocMaintAmt, carDocConnectAmt, gapAmt, vscAmt,
     isTNMode, tnCapEnabled, stateRate, localRate, singleArticleRate
   ]);
 
@@ -223,21 +313,21 @@ export default function Home() {
                   value={payoff} onChange={(e)=>setPayoff(parseFloat(e.target.value||"0"))}/>
               </label>
             </div>
-
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="text-xs text-gray-500">
                 * Trade equity reduces taxable base in TN. Negative equity rolls into amount financed.
               </div>
-              <label className="text-sm justify-self-end flex items-center gap-2">
-                <input type="checkbox" checked={showOTD} onChange={(e)=>setShowOTD(e.target.checked)} />
-                Show OTD in grid
-              </label>
+              <div className="text-right text-sm">
+                <span className="inline-block rounded bg-gray-100 px-2 py-1">
+                  {protectionPkgName}: ${protectionPkgAmt.toLocaleString()} (included)
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Fees & Addendums */}
+          {/* Fees & Tax */}
           <div className="bg-white rounded-2xl shadow p-4 space-y-3">
-            <h2 className="font-semibold">Fees & Addendums</h2>
+            <h2 className="font-semibold">Fees & Taxes</h2>
             <div className="grid grid-cols-3 gap-3">
               <label className="text-sm">
                 <div className="font-medium">Doc Fee</div>
@@ -255,47 +345,6 @@ export default function Home() {
                   value={tempTag} onChange={(e)=>setTempTag(parseFloat(e.target.value||"0"))}/>
               </label>
             </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              <div className="flex items-center gap-2">
-                <input className="w-full rounded-md border p-2" value={addendumRequiredName} onChange={(e)=>setAddendumRequiredName(e.target.value)} />
-                <input type="number" className="w-36 rounded-md border p-2" value={addendumRequiredAmt} onChange={(e)=>setAddendumRequiredAmt(parseFloat(e.target.value||"0"))}/>
-                <span className="text-xs text-gray-500">Required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input className="w-full rounded-md border p-2" value={addendumOptName} onChange={(e)=>setAddendumOptName(e.target.value)} />
-                <input type="number" className="w-36 rounded-md border p-2" value={addendumOptAmt} onChange={(e)=>setAddendumOptAmt(parseFloat(e.target.value||"0"))}/>
-                <label className="text-xs flex items-center gap-2">
-                  <input type="checkbox" checked={addendumOptSelected} onChange={(e)=>setAddendumOptSelected(e.target.checked)} />
-                  include
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Terms & Downs */}
-          <div className="bg-white rounded-2xl shadow p-4 space-y-3">
-            <h2 className="font-semibold">Grid Settings</h2>
-            <label className="text-sm block">
-              <div className="font-medium">Down Columns ($)</div>
-              <div className="mt-1 grid grid-cols-3 gap-2">
-                {downs.map((d, i) => (
-                  <input key={i} type="number" className="rounded-md border p-2"
-                    value={d} onChange={(e)=>updateDown(i, e.target.value)} />
-                ))}
-              </div>
-            </label>
-
-            <label className="text-sm block">
-              <div className="font-medium">Term Rows (months)</div>
-              <div className="mt-1 grid grid-cols-3 gap-2">
-                {terms.map((t, i) => (
-                  <input key={i} type="number" className="rounded-md border p-2"
-                    value={t} onChange={(e)=>updateTerm(i, e.target.value)} />
-                ))}
-              </div>
-            </label>
-
             <div className="pt-2 border-t mt-2">
               <h3 className="font-medium text-sm mb-1">Tax Mode</h3>
               <div className="flex items-center gap-3 text-sm">
@@ -326,17 +375,56 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* GRID (internal view) */}
-        <div className="bg-white rounded-2xl shadow p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Estimated Payments</h2>
-            <div className="text-sm text-gray-500">
-              APR shown: {aprPct}% • Sale Price used: ${salePrice.toLocaleString()}
+          {/* Grid & Menu settings */}
+          <div className="bg-white rounded-2xl shadow p-4 space-y-3">
+            <h2 className="font-semibold">Grid Settings</h2>
+            <label className="text-sm block">
+              <div className="font-medium">Down Columns ($)</div>
+              <div className="mt-1 grid grid-cols-3 gap-2">
+                {downs.map((d, i) => (
+                  <input key={i} type="number" className="rounded-md border p-2"
+                    value={d} onChange={(e)=>updateDown(i, e.target.value)} />
+                ))}
+              </div>
+            </label>
+            <label className="text-sm block">
+              <div className="font-medium">Term Rows (months)</div>
+              <div className="mt-1 grid grid-cols-3 gap-2">
+                {terms.map((t, i) => (
+                  <input key={i} type="number" className="rounded-md border p-2"
+                    value={t} onChange={(e)=>updateTerm(i, e.target.value)} />
+                ))}
+              </div>
+            </label>
+
+            <div className="pt-2 border-t mt-2">
+              <h3 className="font-medium text-sm mb-1">Product Menu Settings</h3>
+              <label className="text-sm">
+                <div className="font-medium">Presentation Down ($)</div>
+                <select
+                  className="mt-1 w-full rounded-md border p-2"
+                  value={menuDownIndex}
+                  onChange={(e)=>setMenuDownIndex(parseInt(e.target.value,10))}
+                >
+                  {downs.map((d,i)=>(<option key={i} value={i}>Use ${d.toLocaleString()} down</option>))}
+                </select>
+                <div className="text-xs text-gray-500 mt-1">
+                  Product Menu uses this down across all terms to compare Base vs add-ons.
+                </div>
+              </label>
             </div>
           </div>
+        </div>
 
+        {/* INTERNAL PAYMENT GRID (terms × downs) */}
+        <div className="bg-white rounded-2xl shadow p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Estimated Payments (Base)</h2>
+            <div className="text-sm text-gray-500">
+              APR: {aprPct}% • Sale Price: ${salePrice.toLocaleString()}
+            </div>
+          </div>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -371,9 +459,8 @@ export default function Home() {
               </tbody>
             </table>
           </div>
-
           <p className="mt-3 text-xs text-gray-500">
-            * Estimates only. Taxes per TN rules (toggleable), fees/addendums as shown, subject to credit approval and equity. Program terms subject to change.
+            * Base includes {protectionPkgName}. Estimates only; subject to credit approval and program rules.
           </p>
         </div>
 
@@ -397,20 +484,47 @@ export default function Home() {
               <hr style={{ margin: "12px 0" }} />
             </div>
 
+            {/* Customer intro */}
             <h3 className="font-semibold">Customer View</h3>
             <p className="text-sm text-gray-600">
-              We’ve prepared a few options using a price of{" "}
-              <strong>${salePrice.toLocaleString()}</strong> and an APR of{" "}
-              <strong>{aprPct}%</strong>. Figures are estimates only.
+              We’ve prepared options using a price of <strong>${salePrice.toLocaleString()}</strong>, an APR of{" "}
+              <strong>{aprPct}%</strong>, and <strong>${(productMenu.down||0).toLocaleString()}</strong> down.
             </p>
 
+            {/* Base terms × downs table (readable view) */}
             <CustomerGridTable downs={downs} grid={grid} showOTD={showOTD} />
+
+            {/* Product Menu grid (Base vs add-ons) */}
+            <div className="mt-6">
+              <h3 className="font-semibold">Ownership Protection Options (using ${ (productMenu.down||0).toLocaleString() } down)</h3>
+              <ProductMenuTable
+                terms={terms}
+                scenarios={productMenu.byTerm}
+                highlightFull
+              />
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
+                <div>
+                  <div className="font-medium">Included:</div>
+                  <ul className="list-disc list-inside">
+                    <li>Victory Protection Package — Lifetime Nitrogen, All-Season Mats, Cargo Tray</li>
+                    <li>3M Door Edge Guards, Wheel Locks, Splash Guards</li>
+                  </ul>
+                </div>
+                <div>
+                  <div className="font-medium">Add-Ons:</div>
+                  <ul className="list-disc list-inside">
+                    <li><strong>CarDoc Maintenance (5yr)</strong> — scheduled maintenance plan</li>
+                    <li><strong>CarDoc Connect + Anti-Theft (6yr)</strong> — app, geo fencing, speed alerts, $5,000 theft benefit</li>
+                    <li><strong>GAP</strong> — covers the loan/lease balance if vehicle is totaled</li>
+                    <li><strong>VSC</strong> — extended service contract for major repairs</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
 
             {/* Print-only Footer */}
             <div className="print-footer">
-              * All figures are estimates only and subject to credit approval, equity
-              verification, and program rules. Taxes, fees, and addendums shown as of
-              current month. See dealer for complete details.
+              * All figures are estimates and subject to credit approval, equity verification, and program rules. Taxes and fees as configured. See dealer for full details.
             </div>
           </div>
         )}
