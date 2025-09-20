@@ -2,82 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Screen Defaults ---------- */
+/* ---------- Screen defaults ---------- */
 body {
   @apply bg-gray-100 text-gray-800 font-sans;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Headings */
-h1, h2, h3, h4 {
-  @apply font-semibold text-gray-900;
-}
+h1, h2, h3, h4 { @apply font-semibold text-gray-900; }
 
-/* Cards */
-.card {
-  @apply bg-white rounded-2xl shadow p-6;
-}
+.card { @apply bg-white rounded-2xl shadow p-6; }
 
 /* Tables */
-table {
-  @apply border-collapse w-full;
-}
-th, td {
-  @apply border-b border-gray-200 p-2;
-}
-th {
-  @apply bg-gray-50 text-gray-700 font-medium;
-}
-td {
-  @apply text-gray-800;
-}
+table { @apply border-collapse w-full; }
+th, td { @apply border-b border-gray-200 p-2; }
+th { @apply bg-gray-50 text-gray-700 font-medium; }
+td { @apply text-gray-800; }
 
 /* Buttons */
-button {
-  @apply rounded-md px-4 py-2 font-medium transition;
-}
-button.primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700;
-}
-button.secondary {
-  @apply bg-gray-200 text-gray-700 hover:bg-gray-300;
-}
-button.danger {
-  @apply bg-red-600 text-white hover:bg-red-700;
+button { @apply rounded-md px-4 py-2 font-medium transition; }
+button.primary   { @apply bg-blue-600 text-white hover:bg-blue-700; }
+button.secondary { @apply bg-gray-200 text-gray-700 hover:bg-gray-300; }
+button.danger    { @apply bg-red-600 text-white hover:bg-red-700; }
+
+/* Inputs */
+input, select, textarea { @apply rounded-md border border-gray-300 p-2 w-full text-sm; }
+input:focus, select:focus, textarea:focus { @apply outline-none ring-2 ring-blue-500 border-blue-500; }
+
+/* Row striping helper (if you apply `odd` class in JSX) */
+tr.odd { @apply bg-gray-50/50; }
+
+/* Hide print-only header/footer while on screen */
+@media screen {
+  .print-header, .print-footer { display: none; }
 }
 
-/* Form Inputs */
-input, select, textarea {
-  @apply rounded-md border border-gray-300 p-2 w-full text-sm;
-}
-input:focus, select:focus, textarea:focus {
-  @apply outline-none ring-2 ring-blue-500 border-blue-500;
-}
-
-/* Grid alternation */
-tr.odd {
-  @apply bg-gray-50/50;
-}
-
-/* ---------- Print Styles ---------- */
+/* ---------- Print styles (customer view only) ---------- */
 @media print {
-  body {
-    background: #fff !important;
-    color: #000;
-    margin: 0;
-  }
+  /* Nicer PDF margins */
+  @page { margin: 0.5in; }
 
   /* Hide everything by default */
-  body * {
-    visibility: hidden;
-  }
+  body * { visibility: hidden; }
 
-  /* Show only customer view */
-  #customer-print, #customer-print * {
-    visibility: visible;
-  }
+  /* Show only the customer view region */
+  #customer-print, #customer-print * { visibility: visible; }
 
+  /* Position printable area at top-left and full width */
   #customer-print {
     position: absolute;
     left: 0;
@@ -87,61 +58,14 @@ tr.odd {
     padding: 20px;
   }
 
-  /* Hide no-print elements */
-  .no-print {
-    display: none !important;
-  }
-
-  /* Print typography */
-  h1, h2, h3 {
-    color: #000 !important;
-  }
-
-  table {
-    font-size: 12px;
-  }
-
-  th, td {
-    border: 1px solid #ccc !important;
-    padding: 6px !important;
-  }
-}
-/* Header/Footer always show in print */
-.print-header, .print-footer {
-  display: block !important;
-  visibility: visible !important;
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-/* Footer at bottom of page */
-.print-footer {
-  position: fixed;
-  bottom: 10px;
-  left: 0;
-  width: 100%;
-  font-size: 11px;
-  color: #555;
-}
-
-/* Hide print header/footer on screen */
-@media screen {
-  .print-header, .print-footer {
-    display: none;
-  }
-  @media print {
-  /* already have the visibility rules */
-  /* ... */
-
-  /* Page margins (better PDF look) */
-  @page { margin: 0.5in; }
-
-  /* Print header/footer helpers */
+  /* Print header/footer should be visible in print */
   .print-header, .print-footer {
     display: block !important;
     visibility: visible !important;
     text-align: center;
   }
+
+  /* Footer pinned to bottom */
   .print-footer {
     position: fixed;
     bottom: 10px;
@@ -151,12 +75,12 @@ tr.odd {
     color: #555;
   }
 
-  /* Hide any element marked as no-print */
+  /* Hide elements explicitly marked as no-print */
   .no-print { display: none !important; }
-}
 
-/* Hide header/footer on screen */
-@media screen {
-  .print-header, .print-footer { display: none; }
+  /* Print typography & table borders */
+  h1, h2, h3 { color: #000 !important; }
+  table { font-size: 12px; }
+  th, td { border: 1px solid #ccc !important; padding: 6px !important; }
 }
 
