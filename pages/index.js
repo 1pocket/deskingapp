@@ -465,6 +465,27 @@ export default function Home() {
         </div>
 
         {/* CUSTOMER VIEW (print-optimized) */}
+{/* Customer intro */}
+<h3 className="font-semibold">Customer View</h3>
+<p className="text-sm text-gray-600">
+  We’ve prepared options using a price of <strong>${salePrice.toLocaleString()}</strong>,
+  an APR of <strong>{aprPct}%</strong>, and <strong>${(productMenu.down||0).toLocaleString()}</strong> down.
+</p>
+
+{/* Hide this tall grid when printing */}
+<div className="hide-on-print">
+  <CustomerGridTable downs={downs} grid={grid} showOTD={showOTD} />
+</div>
+
+{/* Product Menu grid (prints) */}
+<div className="mt-6">
+  <h3 className="font-semibold">
+    Ownership Protection Options (using ${ (productMenu.down||0).toLocaleString() } down)
+  </h3>
+  <ProductMenuTable terms={terms} scenarios={productMenu.byTerm} highlightFull />
+  {/* ...benefits list stays... */}
+</div>
+
         {showCustomerView && (
           <div id="customer-print" className="bg-white rounded-2xl shadow p-4">
             {/* Print-only Header */}
