@@ -2,16 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Screen-only helpers */
+/* quick diagnostic so we can see it's loaded */
+body { background: #f6f7f9; }
+
+/* screen helpers */
 .no-print {}
 .hide-on-print {}
 
-/* Hide print header/footer on screen */
 @media screen {
   .print-header, .print-footer { display: none; }
 }
 
-/* Print only the #customer-print section, keep it to one page */
+/* print-only customer section */
 @media print {
   @page { size: Letter; margin: 0.35in; }
 
@@ -19,51 +21,19 @@
   #customer-print, #customer-print * { visibility: visible; }
 
   #customer-print {
-    position: absolute;
-    left: 0; top: 0; width: 100%;
-    background: #fff !important;
-    padding: 6px;
-    border-radius: 0 !important;
-    box-shadow: none !important;
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: #fff !important; padding: 6px;
+    border-radius: 0 !important; box-shadow: none !important;
     line-height: 1.2;
-    transform: scale(0.92);
-    transform-origin: top left;
+    transform: scale(0.92); transform-origin: top left;
     width: calc(100% / 0.92);
   }
 
-  #customer-print h1,
-  #customer-print h2,
-  #customer-print h3 { font-size: 15px !important; }
-  #customer-print p,
-  #customer-print .text-sm { font-size: 11px !important; }
-
   #customer-print table { font-size: 10.5px; }
-  #customer-print th,
-  #customer-print td { padding: 3px !important; }
+  #customer-print th, #customer-print td { padding: 3px !important; }
 
-  #customer-print table,
-  #customer-print thead,
-  #customer-print tbody,
-  #customer-print tr,
-  #customer-print td,
-  #customer-print th {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
+  .print-header, .print-footer { display: block !important; text-align: center; }
+  .print-footer { position: static; margin-top: 6px; font-size: 10px; color: #555; }
 
-  .print-header, .print-footer {
-    display: block !important;
-    visibility: visible !important;
-    text-align: center;
-  }
-
-  .print-footer {
-    position: static;
-    margin-top: 6px;
-    font-size: 10px;
-    color: #555;
-  }
-
-  .no-print,
-  .hide-on-print { display: none !important; }
+  .no-print, .hide-on-print { display: none !important; }
 }
