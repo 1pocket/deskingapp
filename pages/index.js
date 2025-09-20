@@ -469,11 +469,12 @@ export default function Home() {
           <div id="customer-print" className="bg-white rounded-2xl shadow p-4">
             {/* Print-only Header */}
             <div className="print-header">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/0/08/Honda_logo.png"
-                alt="Honda Logo"
-                style={{ height: 40, marginBottom: 8 }}
-              />
+             <img
+  src="/logo.png"
+  alt="Victory Honda Logo"
+  style={{ height: 40, marginBottom: 8 }}
+/>
+
               <h2 style={{ margin: 0 }}>Victory Honda of Jackson</h2>
               <p style={{ margin: 0, fontSize: 13 }}>
                 1408 Highway 45 Bypass • Jackson, TN 38305 • (731) 660-0100
