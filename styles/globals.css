@@ -1,14 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Screen Defaults ---------- */
+body {
+  @apply bg-gray-100 text-gray-800 font-sans;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+  @apply font-semibold text-gray-900;
+}
+
+/* Cards */
+.card {
+  @apply bg-white rounded-2xl shadow p-6;
+}
+
+/* Tables */
+table {
+  @apply border-collapse w-full;
+}
+th, td {
+  @apply border-b border-gray-200 p-2;
+}
+th {
+  @apply bg-gray-50 text-gray-700 font-medium;
+}
+td {
+  @apply text-gray-800;
+}
+
+/* Buttons */
+button {
+  @apply rounded-md px-4 py-2 font-medium transition;
+}
+button.primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+button.secondary {
+  @apply bg-gray-200 text-gray-700 hover:bg-gray-300;
+}
+button.danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+}
+
+/* Form Inputs */
+input, select, textarea {
+  @apply rounded-md border border-gray-300 p-2 w-full text-sm;
+}
+input:focus, select:focus, textarea:focus {
+  @apply outline-none ring-2 ring-blue-500 border-blue-500;
+}
+
+/* Grid alternation */
+tr.odd {
+  @apply bg-gray-50/50;
+}
+
+/* ---------- Print Styles ---------- */
 @media print {
+  body {
+    background: #fff !important;
+    color: #000;
+    margin: 0;
+  }
+
+  /* Hide everything by default */
   body * {
     visibility: hidden;
   }
+
+  /* Show only customer view */
   #customer-print, #customer-print * {
     visibility: visible;
   }
+
   #customer-print {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    background: #fff !important;
+    padding: 20px;
+  }
+
+  /* Hide no-print elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Print typography */
+  h1, h2, h3 {
+    color: #000 !important;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 6px !important;
   }
 }
