@@ -39,41 +39,51 @@ tr.odd { @apply bg-gray-50/50; }
 
 /* ---------- Print styles (customer view only) ---------- */
 @media print {
-  /* Nicer PDF margins */
-  @page { margin: 0.5in; }
+  /* Use US Letter and tighter margins */
+  @page { size: Letter; margin: 0.4in; }
 
-  /* Hide everything by default */
-  body * { visibility: hidden; }
-
-  /* Show only the customer view region */
-  #customer-print, #customer-print * { visibility: visible; }
-
-  /* Position printable area at top-left and full width */
+  /* Make the printable area compact */
   #customer-print {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    background: #fff !important;
-    padding: 20px;
+    padding: 8px;                 /* was 20px */
   }
 
-  /* Print header/footer should be visible in print */
-  .print-header, .print-footer {
-    display: block !important;
-    visibility: visible !important;
-    text-align: center;
-  }
+  /* Slightly smaller typography in print */
+  #customer-print h1,
+  #customer-print h2,
+  #customer-print h3 { font-size: 16px !important; }
+  #customer-print p,
+  #customer-print .text-sm { font-size: 12px !important; }
 
-  /* Footer pinned to bottom */
+  /* Compact table */
+  #customer-print table { font-size: 11px; }
+  #customer-print th,
+  #customer-print td { padding: 4px !important; }
+
+  /* Avoid awkward page breaks inside tables */
+  #customer-print table,
+  #customer-print thead,
+  #customer-print tbody,
+  #customer-print tr,
+  #customer-print td,
+  #customer-print th { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Footer: make it static so it doesn't push content to a new page */
   .print-footer {
-    position: fixed;
-    bottom: 10px;
-    left: 0;
-    width: 100%;
-    font-size: 11px;
-    color: #555;
+    position: static;       /* was fixed */
+    margin-top: 8px;
+    font-size: 10.5px;
   }
+
+  /* If you *still* need a nudge, scale down a touch (uncomment below) */
+  /*
+  #customer-print {
+    transform: scale(0.95);
+    transform-origin: top left;
+    width: calc(100% / 0.95);
+  }
+  */
+}
+
 
   /* Hide elements explicitly marked as no-print */
   .no-print { display: none !important; }
