@@ -10,7 +10,6 @@ body {
 }
 
 h1, h2, h3, h4 { @apply font-semibold text-gray-900; }
-
 .card { @apply bg-white rounded-2xl shadow p-6; }
 
 /* Tables */
@@ -29,8 +28,9 @@ button.danger    { @apply bg-red-600 text-white hover:bg-red-700; }
 input, select, textarea { @apply rounded-md border border-gray-300 p-2 w-full text-sm; }
 input:focus, select:focus, textarea:focus { @apply outline-none ring-2 ring-blue-500 border-blue-500; }
 
-/* Row striping helper (if you apply `odd` class in JSX) */
-tr.odd { @apply bg-gray-50/50; }
+/* Utility hooks used in JSX */
+.no-print { }
+.hide-on-print { }
 
 /* Hide print-only header/footer while on screen */
 @media screen {
@@ -39,67 +39,69 @@ tr.odd { @apply bg-gray-50/50; }
 
 /* ---------- Print styles (customer view only) ---------- */
 @media print {
-  /* Smaller page margins and Letter size */
+  /* Page size & margins */
   @page { size: Letter; margin: 0.35in; }
 
-  /* Hide sections you mark as bulky */
-  .hide-on-print { display: none !important; }
+  /* Hide everything by default */
+  body * { visibility: hidden; }
 
-  /* Compact the printable area */
+  /* Show only the customer view region */
+  #customer-print, #customer-print * { visibility: visible; }
+
+  /* Position printable area and make it compact */
   #customer-print {
-    padding: 6px;                 /* tighter padding */
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #fff !important;
+    padding: 6px;                 /* compact */
+    border-radius: 0 !important;
+    box-shadow: none !important;
     line-height: 1.2;
+    transform: scale(0.92);       /* ensure 1 page; tweak 0.90–0.95 if needed */
+    transform-origin: top left;
+    width: calc(100% / 0.92);
   }
 
-  /* Smaller fonts overall */
+  /* Smaller typography & table spacing */
   #customer-print h1,
   #customer-print h2,
   #customer-print h3 { font-size: 15px !important; }
   #customer-print p,
   #customer-print .text-sm { font-size: 11px !important; }
 
-  /* Compact tables */
   #customer-print table { font-size: 10.5px; }
   #customer-print th,
   #customer-print td { padding: 3px !important; }
 
-  /* Prevent awkward breaks */
+  /* Avoid breaks inside tables */
   #customer-print table,
   #customer-print thead,
   #customer-print tbody,
   #customer-print tr,
   #customer-print td,
-  #customer-print th { break-inside: avoid; page-break-inside: avoid; }
-
-  /* Make footer normal flow so it doesn't force a new page */
-  .print-footer { position: static; margin-top: 6px; font-size: 10px; }
-
-  /* Last resort: scale the whole section slightly to guarantee 1 page */
-  #customer-print {
-    transform: scale(0.92);              /* tweak between 0.90–0.95 if needed */
-    transform-origin: top left;
-    width: calc(100% / 0.92);
+  #customer-print th {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
-}
 
-
-  /* If you *still* need a nudge, scale down a touch (uncomment below) */
-  /*
-  #customer-print {
-    transform: scale(0.95);
-    transform-origin: top left;
-    width: calc(100% / 0.95);
+  /* Show print header/footer only in print */
+  .print-header, .print-footer {
+    display: block !important;
+    visibility: visible !important;
+    text-align: center;
   }
-  */
-}
 
+  /* Footer in normal flow so it doesn't force another page */
+  .print-footer {
+    position: static;
+    margin-top: 6px;
+    font-size: 10px;
+    color: #555;
+  }
 
-  /* Hide elements explicitly marked as no-print */
+  /* Screen-only helpers */
   .no-print { display: none !important; }
-
-  /* Print typography & table borders */
-  h1, h2, h3 { color: #000 !important; }
-  table { font-size: 12px; }
-  th, td { border: 1px solid #ccc !important; padding: 6px !important; }
+  .hide-on-print { display: none !important; }
 }
-
