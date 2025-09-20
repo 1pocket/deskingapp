@@ -22,24 +22,52 @@ function tnSalesTax({
   singleArticleUpper = 3200,   // $1,600.01 - $3,200 range
 }) {
   if (base <= 0) return 0;
-
-  // Always apply full 7% state tax across the full base
   const state = base * stateRate;
-
   if (!useSingleArticleCap) {
-    // Simple: local on full base (works for non-TN or approximation)
     const local = base * localRate;
     return +(state + local).toFixed(2);
   }
-
-  // Local: only on first $1,600
   const local = Math.min(base, localCapBase) * localRate;
-
-  // State single-article 2.75%: only on portion 1600.01 - 3200
   const singleArticlePortion = Math.max(Math.min(base, singleArticleUpper) - localCapBase, 0);
   const singleArticle = singleArticlePortion * singleArticleRate;
-
   return +(state + local + singleArticle).toFixed(2);
+}
+
+/* ---------- CUSTOMER TABLE (shared for screen + print) ---------- */
+function CustomerGridTable({ downs, grid, showOTD }) {
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            <th className="text-left p-2 border-b">Term</th>
+            {downs.map((d, i) => (
+              <th key={i} className="text-right p-2 border-b">
+                ${d.toLocaleString()} down
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {grid.map((row) => (
+            <tr key={row.months} className="odd:bg-gray-50/50">
+              <td className="p-2 font-medium border-b">{row.months} months</td>
+              {row.cells.map((c, i) => (
+                <td key={i} className="p-2 text-right tabular-nums border-b">
+                  ${c.payment.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
+                  {showOTD && (
+                    <div className="text-[11px] text-gray-500">
+                      Est. OTD ${c.otd.toLocaleString()}
+                    </div>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 /* ---------- MAIN UI ---------- */
@@ -51,7 +79,7 @@ export default function Home() {
   const [downs, setDowns] = useState([0, 1000, 2000]);   // columns
 
   // Deal structure
-  const [rebate, setRebate] = useState(0);               // taxable manufacturer or dealer cash you want to treat as cap reduction
+  const [rebate, setRebate] = useState(0);
   const [tradeAllowance, setTradeAllowance] = useState(0);
   const [payoff, setPayoff] = useState(0);
   const tradeEquity = Math.max(tradeAllowance - payoff, 0); // negative equity handled below
@@ -95,10 +123,8 @@ export default function Home() {
     const optAdd = addendumOptSelected ? addendumOptAmt : 0;
     const addendums = (addendumRequiredAmt || 0) + optAdd;
 
-    // Taxable base: price - trade credit + doc + (addendums if you tax them)
-    // In TN, trade credit reduces the taxable base.
-    const taxableBase =
-      Math.max(salePrice - tradeAllowance, 0) + docFee + addendums;
+    // Taxable base: price - trade credit + doc + addendums (TN taxes addendums)
+    const taxableBase = Math.max(salePrice - tradeAllowance, 0) + docFee + addendums;
 
     const taxes = isTNMode
       ? tnSalesTax({
@@ -108,12 +134,10 @@ export default function Home() {
           useSingleArticleCap: tnCapEnabled,
           singleArticleRate,
         })
-      : // Simple combined rate (state+local) without caps
-        +(taxableBase * (stateRate + localRate)).toFixed(2);
+      : +(taxableBase * (stateRate + localRate)).toFixed(2);
 
     // Amount Due (pre-finance): price + fees + addendums + taxes
-    const dueBeforeDowns =
-      salePrice + docFee + titleFee + tempTag + addendums + taxes;
+    const dueBeforeDowns = salePrice + docFee + titleFee + tempTag + addendums + taxes;
 
     // Cap reductions: cash down + rebate + trade equity (if positive)
     const capReductions = (cashDown || 0) + (rebate || 0) + tradeEquity;
@@ -125,14 +149,8 @@ export default function Home() {
     const negativeEquity = Math.max(payoff - tradeAllowance, 0);
     const amountFinancedWithNE = amountFinanced + negativeEquity;
 
-    // Monthly payment per selected term happens later for grid rows
     return {
-      addendums,
-      taxes,
-      dueBeforeDowns,
-      capReductions,
       amountFinanced: +amountFinancedWithNE.toFixed(2),
-      // For OTD (cash deal), show due at signing with this down:
       otdWithDown: +(dueBeforeDowns + negativeEquity - (cashDown || 0) - rebate - tradeEquity).toFixed(2),
     };
   }
@@ -142,13 +160,7 @@ export default function Home() {
       const cells = downs.map((d) => {
         const c = buildCalc(d);
         const pay = pmt({ principal: c.amountFinanced, aprPct, months: m });
-        return {
-          down: d,
-          months: m,
-          payment: pay,
-          amountFinanced: c.amountFinanced,
-          otd: c.otdWithDown,
-        };
+        return { down: d, months: m, payment: pay, amountFinanced: c.amountFinanced, otd: c.otdWithDown };
       });
       return { months: m, cells };
     });
@@ -168,7 +180,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
-              className="hidden print:hidden md:inline-flex bg-gray-800 text-white px-3 py-2 rounded-md"
+              className="no-print hidden print:hidden md:inline-flex bg-gray-800 text-white px-3 py-2 rounded-md"
             >
               Print
             </button>
@@ -195,7 +207,6 @@ export default function Home() {
                 <input type="number" step="0.01" className="mt-1 w-full rounded-md border p-2"
                   value={aprPct} onChange={(e)=>setAprPct(parseFloat(e.target.value||"0"))}/>
               </label>
-
               <label className="text-sm">
                 <div className="font-medium">Rebate ($)</div>
                 <input type="number" className="mt-1 w-full rounded-md border p-2"
@@ -317,7 +328,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* GRID */}
+        {/* GRID (internal view) */}
         <div className="bg-white rounded-2xl shadow p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Estimated Payments</h2>
@@ -367,40 +378,45 @@ export default function Home() {
         </div>
 
         {/* CUSTOMER VIEW (print-optimized) */}
-{showCustomerView && (
-  <div id="customer-print" className="bg-white rounded-2xl shadow p-4">
-    {/* Print-only Header */}
-    <div className="print-header">
-      <img
-        src="https://upload.wikimedia.org/wikipedia/commons/0/08/Honda_logo.png"
-        alt="Honda Logo"
-        style={{ height: "40px", marginBottom: "8px" }}
-      />
-      <h2 style={{ margin: 0 }}>Victory Honda of Jackson</h2>
-      <p style={{ margin: 0, fontSize: "13px" }}>
-        1408 Highway 45 Bypass • Jackson, TN 38305 • (731) 555-1234
-      </p>
-      <hr style={{ margin: "12px 0" }} />
+        {showCustomerView && (
+          <div id="customer-print" className="bg-white rounded-2xl shadow p-4">
+            {/* Print-only Header */}
+            <div className="print-header">
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/0/08/Honda_logo.png"
+                alt="Honda Logo"
+                style={{ height: 40, marginBottom: 8 }}
+              />
+              <h2 style={{ margin: 0 }}>Victory Honda of Jackson</h2>
+              <p style={{ margin: 0, fontSize: 13 }}>
+                1408 Highway 45 Bypass • Jackson, TN 38305 • (731) 660-0100
+              </p>
+              <p style={{ margin: 0, fontSize: 12 }}>
+                Prepared by: ____________________ &nbsp; Date: ____________
+              </p>
+              <hr style={{ margin: "12px 0" }} />
+            </div>
+
+            <h3 className="font-semibold">Customer View</h3>
+            <p className="text-sm text-gray-600">
+              We’ve prepared a few options using a price of{" "}
+              <strong>${salePrice.toLocaleString()}</strong> and an APR of{" "}
+              <strong>{aprPct}%</strong>. Figures are estimates only.
+            </p>
+
+            <CustomerGridTable downs={downs} grid={grid} showOTD={showOTD} />
+
+            {/* Print-only Footer */}
+            <div className="print-footer">
+              * All figures are estimates only and subject to credit approval, equity
+              verification, and program rules. Taxes, fees, and addendums shown as of
+              current month. See dealer for complete details.
+            </div>
+          </div>
+        )}
+      </div>
     </div>
-
-    {/* Existing Customer View Content */}
-    <h3 className="font-semibold">Customer View</h3>
-    <p className="text-sm text-gray-600">
-      We’ve prepared a few options using a price of{" "}
-      <strong>${salePrice.toLocaleString()}</strong> and an APR of{" "}
-      <strong>{aprPct}%</strong>. Figures are estimates only.
-    </p>
-
-    {/* ... your existing table goes here ... */}
-
-    {/* Print-only Footer */}
-    <div className="print-footer">
-      * All figures are estimates only and subject to credit approval, equity
-      verification, and program rules. Taxes, fees, and addendums shown as of
-      current month. See dealer for complete details.
-    </div>
-  </div>
-)
+  );
 }
 
 
