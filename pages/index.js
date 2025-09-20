@@ -1,5 +1,5 @@
 // pages/index.js
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 
 /* ---------- FINANCE MATH ---------- */
 // Monthly payment: PMT = r*PV / (1 - (1+r)^-n), r = APR/12
@@ -78,6 +78,7 @@ function ProductMenuTable({ terms, scenarios, highlightFull = true }) {
     { key: "gap", label: "+GAP" },
     { key: "vsc", label: "+VSC" },
     { key: "full", label: "Full Protection" },
+    { key: "combo", label: "Selected Combo" }, // NEW
   ];
   return (
     <div className="mt-4 overflow-x-auto">
@@ -117,6 +118,84 @@ function ProductMenuTable({ terms, scenarios, highlightFull = true }) {
   );
 }
 
+/* ---------- SIMPLE SIGNATURE PAD ---------- */
+function SignaturePad({ onChange }) {
+  const canvasRef = useRef(null);
+  const drawing = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000";
+
+    const getPos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches ? e.touches[0] : e;
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    };
+
+    const down = (e) => {
+      drawing.current = true;
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      e.preventDefault();
+    };
+    const move = (e) => {
+      if (!drawing.current) return;
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      e.preventDefault();
+      onChange?.(canvas.toDataURL("image/png"));
+    };
+    const up = () => { drawing.current = false; };
+
+    canvas.addEventListener("mousedown", down);
+    canvas.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    canvas.addEventListener("touchstart", down, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    window.addEventListener("touchend", up);
+
+    return () => {
+      canvas.removeEventListener("mousedown", down);
+      canvas.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      canvas.removeEventListener("touchstart", down);
+      canvas.removeEventListener("touchmove", move);
+      window.removeEventListener("touchend", up);
+    };
+  }, [onChange]);
+
+  const clearSig = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    onChange?.("");
+  };
+
+  return (
+    <div>
+      <canvas
+        id="sigpad"
+        ref={canvasRef}
+        width={500}
+        height={160}
+        className="border rounded bg-white w-full"
+        style={{ touchAction: "none" }}
+      />
+      <div className="mt-2 flex gap-2">
+        <button type="button" onClick={clearSig} className="secondary px-3 py-1 rounded">Clear</button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- MAIN UI ---------- */
 export default function Home() {
   // Vehicle & program inputs
@@ -124,7 +203,7 @@ export default function Home() {
   const [aprPct, setAprPct] = useState(6.99);
   const [terms, setTerms] = useState([60, 72, 84]);    // rows
   const [downs, setDowns] = useState([0, 1000, 2000]); // columns
-  const [menuDownIndex, setMenuDownIndex] = useState(1); // which Down to use for Product Menu (index into downs)
+  const [menuDownIndex, setMenuDownIndex] = useState(1); // which Down to use for Product Menu
 
   // Deal structure
   const [rebate, setRebate] = useState(0);
@@ -133,7 +212,7 @@ export default function Home() {
   const tradeEquity = Math.max(tradeAllowance - payoff, 0);
 
   // Fees & required package (included on all vehicles)
-  const [docFee, setDocFee] = useState(799);
+  const [docFee, setDocFee] = useState(699); // adjust default here if needed
   const [titleFee, setTitleFee] = useState(89);
   const [tempTag, setTempTag] = useState(5);
   const [protectionPkgName] = useState("Victory Protection Package (included)");
@@ -145,6 +224,12 @@ export default function Home() {
   const [gapAmt] = useState(1198);
   const [vscAmt] = useState(2998);
 
+  // Customer-chosen add-ons for the "Selected Combo" column
+  const [selMaint, setSelMaint] = useState(true);
+  const [selConnect, setSelConnect] = useState(true);
+  const [selGap, setSelGap] = useState(false);
+  const [selVsc, setSelVsc] = useState(false);
+
   // Tax settings
   const [isTNMode, setIsTNMode] = useState(true);
   const [tnCapEnabled, setTnCapEnabled] = useState(true);
@@ -155,6 +240,15 @@ export default function Home() {
   // Presentation toggles
   const [showCustomerView, setShowCustomerView] = useState(true);
   const [showOTD, setShowOTD] = useState(true);
+
+  // e-Sign modal & acknowledgment fields
+  const [showSign, setShowSign] = useState(false);
+  const [custName, setCustName] = useState("");
+  const [custPhone, setCustPhone] = useState("");
+  const [custEmail, setCustEmail] = useState("");
+  const [agreedTerm, setAgreedTerm] = useState(72);
+  const [agreedSigData, setAgreedSigData] = useState("");
+  const [agreedOption, setAgreedOption] = useState("combo"); // base | maint | connect | gap | vsc | full | combo
 
   function updateTerm(i, v) {
     const copy = [...terms];
@@ -216,26 +310,27 @@ export default function Home() {
     isTNMode, tnCapEnabled, stateRate, localRate, singleArticleRate
   ]);
 
-  // Product Menu scenarios for a chosen Down (downs[menuDownIndex])
+  // Product Menu scenarios for chosen Down (downs[menuDownIndex]), incl. Selected Combo
   const productMenu = useMemo(() => {
     const down = downs[Math.min(menuDownIndex, Math.max(downs.length - 1, 0))] || 0;
 
-    // Precompute addon totals
-    const A_BASE = 0;
     const A_MAINT = carDocMaintAmt;
     const A_CONNECT = carDocConnectAmt;
     const A_GAP = gapAmt;
     const A_VSC = vscAmt;
-    const A_FULL = A_MAINT + A_CONNECT + A_GAP + A_VSC;
 
     const byTerm = {};
     terms.forEach((m) => {
-      const base = buildCalc(down, A_BASE);
+      const base = buildCalc(down, 0);
       const maint = buildCalc(down, A_MAINT);
       const connect = buildCalc(down, A_CONNECT);
       const gap = buildCalc(down, A_GAP);
       const vsc = buildCalc(down, A_VSC);
-      const full = buildCalc(down, A_FULL);
+      const full = buildCalc(down, A_MAINT + A_CONNECT + A_GAP + A_VSC);
+      const combo = buildCalc(
+        down,
+        (selMaint ? A_MAINT : 0) + (selConnect ? A_CONNECT : 0) + (selGap ? A_GAP : 0) + (selVsc ? A_VSC : 0)
+      );
 
       const pBase = pmt({ principal: base.amountFinanced, aprPct, months: m });
       const pMaint = pmt({ principal: maint.amountFinanced, aprPct, months: m });
@@ -243,6 +338,7 @@ export default function Home() {
       const pGap = pmt({ principal: gap.amountFinanced, aprPct, months: m });
       const pVsc = pmt({ principal: vsc.amountFinanced, aprPct, months: m });
       const pFull = pmt({ principal: full.amountFinanced, aprPct, months: m });
+      const pCombo = pmt({ principal: combo.amountFinanced, aprPct, months: m });
 
       byTerm[m] = {
         base:   { payment: pBase,   delta: 0 },
@@ -251,15 +347,18 @@ export default function Home() {
         gap:    { payment: pGap,    delta: +(pGap - pBase).toFixed(2) },
         vsc:    { payment: pVsc,    delta: +(pVsc - pBase).toFixed(2) },
         full:   { payment: pFull,   delta: +(pFull - pBase).toFixed(2) },
+        combo:  { payment: pCombo,  delta: +(pCombo - pBase).toFixed(2) },
       };
     });
-    return { down, byTerm, addonTotals: { A_MAINT, A_CONNECT, A_GAP, A_VSC, A_FULL } };
+
+    return { down, byTerm };
   }, [
     downs, menuDownIndex, terms, aprPct,
     salePrice, rebate, tradeAllowance, payoff,
     docFee, titleFee, tempTag, protectionPkgAmt,
     carDocMaintAmt, carDocConnectAmt, gapAmt, vscAmt,
-    isTNMode, tnCapEnabled, stateRate, localRate, singleArticleRate
+    isTNMode, tnCapEnabled, stateRate, localRate, singleArticleRate,
+    selMaint, selConnect, selGap, selVsc
   ]);
 
   return (
@@ -289,27 +388,27 @@ export default function Home() {
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
                 <div className="font-medium">Sale Price ($)</div>
-                <input type="number" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={salePrice} onChange={(e)=>setSalePrice(parseFloat(e.target.value||"0"))}/>
               </label>
               <label className="text-sm">
                 <div className="font-medium">APR (%)</div>
-                <input type="number" step="0.01" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" step="0.01" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={aprPct} onChange={(e)=>setAprPct(parseFloat(e.target.value||"0"))}/>
               </label>
               <label className="text-sm">
                 <div className="font-medium">Rebate ($)</div>
-                <input type="number" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={rebate} onChange={(e)=>setRebate(parseFloat(e.target.value||"0"))}/>
               </label>
               <label className="text-sm">
                 <div className="font-medium">Trade Allow ($)</div>
-                <input type="number" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={tradeAllowance} onChange={(e)=>setTradeAllowance(parseFloat(e.target.value||"0"))}/>
               </label>
               <label className="text-sm">
                 <div className="font-medium">Payoff ($)</div>
-                <input type="number" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={payoff} onChange={(e)=>setPayoff(parseFloat(e.target.value||"0"))}/>
               </label>
             </div>
@@ -331,17 +430,17 @@ export default function Home() {
             <div className="grid grid-cols-3 gap-3">
               <label className="text-sm">
                 <div className="font-medium">Doc Fee</div>
-                <input type="number" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={docFee} onChange={(e)=>setDocFee(parseFloat(e.target.value||"0"))}/>
               </label>
               <label className="text-sm">
                 <div className="font-medium">Title</div>
-                <input type="number" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={titleFee} onChange={(e)=>setTitleFee(parseFloat(e.target.value||"0"))}/>
               </label>
               <label className="text-sm">
                 <div className="font-medium">Temp Tag</div>
-                <input type="number" className="mt-1 w-full rounded-md border p-2"
+                <input type="number" className="mt-1 w-full rounded-md border p-2" autoComplete="off"
                   value={tempTag} onChange={(e)=>setTempTag(parseFloat(e.target.value||"0"))}/>
               </label>
             </div>
@@ -413,6 +512,32 @@ export default function Home() {
                   Product Menu uses this down across all terms to compare Base vs add-ons.
                 </div>
               </label>
+
+              {/* Custom mix toggles */}
+              <div className="mt-3">
+                <div className="font-medium text-sm mb-1">Build a Custom Mix (for the “Selected Combo” column)</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={selMaint} onChange={(e)=>setSelMaint(e.target.checked)} />
+                    CarDoc Maintenance (5yr) — ${carDocMaintAmt.toLocaleString()}
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={selConnect} onChange={(e)=>setSelConnect(e.target.checked)} />
+                    Connect + Anti-Theft (6yr) — ${carDocConnectAmt.toLocaleString()}
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={selGap} onChange={(e)=>setSelGap(e.target.checked)} />
+                    GAP — ${gapAmt.toLocaleString()}
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={selVsc} onChange={(e)=>setSelVsc(e.target.checked)} />
+                    VSC — ${vscAmt.toLocaleString()}
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  The Product Menu will show a “Selected Combo” column using this mix at the chosen down.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -465,37 +590,15 @@ export default function Home() {
         </div>
 
         {/* CUSTOMER VIEW (print-optimized) */}
-{/* Customer intro */}
-<h3 className="font-semibold">Customer View</h3>
-<p className="text-sm text-gray-600">
-  We’ve prepared options using a price of <strong>${salePrice.toLocaleString()}</strong>,
-  an APR of <strong>{aprPct}%</strong>, and <strong>${(productMenu.down||0).toLocaleString()}</strong> down.
-</p>
-
-{/* Hide this tall grid when printing */}
-<div className="hide-on-print">
-  <CustomerGridTable downs={downs} grid={grid} showOTD={showOTD} />
-</div>
-
-{/* Product Menu grid (prints) */}
-<div className="mt-6">
-  <h3 className="font-semibold">
-    Ownership Protection Options (using ${ (productMenu.down||0).toLocaleString() } down)
-  </h3>
-  <ProductMenuTable terms={terms} scenarios={productMenu.byTerm} highlightFull />
-  {/* ...benefits list stays... */}
-</div>
-
         {showCustomerView && (
           <div id="customer-print" className="bg-white rounded-2xl shadow p-4">
             {/* Print-only Header */}
             <div className="print-header">
-             <img
-  src="/logo.png"
-  alt="Victory Honda Logo"
-  style={{ height: 40, marginBottom: 8 }}
-/>
-
+              <img
+                src="/logo.png"
+                alt="Victory Honda Logo"
+                style={{ height: 40, marginBottom: 8 }}
+              />
               <h2 style={{ margin: 0 }}>Victory Honda of Jackson</h2>
               <p style={{ margin: 0, fontSize: 13 }}>
                 1408 Highway 45 Bypass • Jackson, TN 38305 • (731) 660-0100
@@ -513,17 +616,18 @@ export default function Home() {
               <strong>{aprPct}%</strong>, and <strong>${(productMenu.down||0).toLocaleString()}</strong> down.
             </p>
 
-            {/* Base terms × downs table (readable view) */}
-            <CustomerGridTable downs={downs} grid={grid} showOTD={showOTD} />
+            {/* Hide this tall grid when printing */}
+            <div className="hide-on-print">
+              <CustomerGridTable downs={downs} grid={grid} showOTD={showOTD} />
+            </div>
 
-            {/* Product Menu grid (Base vs add-ons) */}
+            {/* Product Menu grid (prints) */}
             <div className="mt-6">
-              <h3 className="font-semibold">Ownership Protection Options (using ${ (productMenu.down||0).toLocaleString() } down)</h3>
-              <ProductMenuTable
-                terms={terms}
-                scenarios={productMenu.byTerm}
-                highlightFull
-              />
+              <h3 className="font-semibold">
+                Ownership Protection Options (using ${ (productMenu.down||0).toLocaleString() } down)
+              </h3>
+              <ProductMenuTable terms={terms} scenarios={productMenu.byTerm} highlightFull />
+
               <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
                 <div>
                   <div className="font-medium">Included:</div>
@@ -542,6 +646,52 @@ export default function Home() {
                   </ul>
                 </div>
               </div>
+
+              {/* Commit & e-Sign button (screen only) */}
+              <div className="mt-4 no-print">
+                <button type="button" onClick={()=>setShowSign(true)} className="primary bg-blue-600 text-white px-4 py-2 rounded">
+                  Commit & e-Sign (non-legal)
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  This is a non-binding acknowledgment to pass along to Finance with your selected option.
+                </p>
+              </div>
+            </div>
+
+            {/* Printable acknowledgment of the customer's selection */}
+            <div className="mt-6 border rounded p-3">
+              <h4 className="font-semibold mb-2">Customer Acknowledgment (Non-Legal)</h4>
+              <p className="text-sm">
+                Name: <strong>{custName || "_____"} </strong>&nbsp;•&nbsp;
+                Phone: <strong>{custPhone || "_____"} </strong>&nbsp;•&nbsp;
+                Email: <strong>{custEmail || "_____"} </strong>
+              </p>
+              <p className="text-sm">
+                Selected Term: <strong>{agreedTerm}</strong> months &nbsp;•&nbsp;
+                Option: <strong>{
+                  { base:"Base", maint:"+CarDoc Maint", connect:"+Connect+Theft", gap:"+GAP", vsc:"+VSC", full:"Full Protection", combo:"Selected Combo" }[agreedOption]
+                }</strong> &nbsp;•&nbsp;
+                Down: <strong>${(productMenu.down||0).toLocaleString()}</strong>
+              </p>
+              <p className="text-sm">
+                Estimated Payment: <strong>
+                  {(() => {
+                    const rec = productMenu.byTerm?.[agreedTerm]?.[agreedOption];
+                    return rec ? `$${rec.payment.toLocaleString(undefined,{minimumFractionDigits:2})}/mo` : "—";
+                  })()}
+                </strong>
+              </p>
+              <div className="mt-2">
+                <div className="text-xs text-gray-500 mb-1">Signature (non-legal):</div>
+                {agreedSigData ? (
+                  <img src={agreedSigData} alt="signature" style={{ height: 60 }} />
+                ) : (
+                  <div className="h-16 border rounded"></div>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-500 mt-2">
+                This acknowledgment is not a retail installment contract nor a legal e-signature; it reflects the customer’s preferred option to streamline the process with the Finance office. All financing subject to credit approval and final lender terms.
+              </p>
             </div>
 
             {/* Print-only Footer */}
@@ -550,9 +700,74 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* e-Sign Modal (screen only) */}
+        {showSign && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 no-print">
+            <div className="bg-white rounded-2xl shadow p-6 w-full max-w-xl">
+              <h3 className="text-lg font-semibold mb-3">Confirm Your Choice</h3>
+
+              <div className="grid grid-cols-1 gap-3">
+                <label className="text-sm">
+                  <div className="font-medium">Your Name</div>
+                  <input className="w-full rounded-md border p-2" value={custName} onChange={(e)=>setCustName(e.target.value)} />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="text-sm">
+                    <div className="font-medium">Phone</div>
+                    <input className="w-full rounded-md border p-2" value={custPhone} onChange={(e)=>setCustPhone(e.target.value)} />
+                  </label>
+                  <label className="text-sm">
+                    <div className="font-medium">Email</div>
+                    <input className="w-full rounded-md border p-2" value={custEmail} onChange={(e)=>setCustEmail(e.target.value)} />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="text-sm">
+                    <div className="font-medium">Term (months)</div>
+                    <select className="w-full rounded-md border p-2" value={agreedTerm} onChange={(e)=>setAgreedTerm(parseInt(e.target.value,10))}>
+                      {terms.map(t=> <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    <div className="font-medium">Option</div>
+                    <select className="w-full rounded-md border p-2" value={agreedOption} onChange={(e)=>setAgreedOption(e.target.value)}>
+                      <option value="base">Base</option>
+                      <option value="maint">+CarDoc Maint</option>
+                      <option value="connect">+Connect+Theft</option>
+                      <option value="gap">+GAP</option>
+                      <option value="vsc">+VSC</option>
+                      <option value="full">Full Protection</option>
+                      <option value="combo">Selected Combo</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="text-sm">
+                  <div className="font-medium mb-1">Sign Below</div>
+                  <SignaturePad onChange={setAgreedSigData} />
+                  <div className="text-xs text-gray-500 mt-1">
+                    This is not a legal e-signature. It’s an acknowledgment to speed up your visit with Finance.
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2 justify-end">
+                <button className="secondary bg-gray-200 px-3 py-2 rounded" onClick={()=>setShowSign(false)}>Cancel</button>
+                <button
+                  className="primary bg-blue-600 text-white px-3 py-2 rounded"
+                  onClick={()=>{ setShowSign(false); setTimeout(()=>window.print(), 50); }}
+                  disabled={!custName || !agreedSigData}
+                  title={!custName || !agreedSigData ? "Enter name and add a signature" : "Print acknowledgment"}
+                >
+                  Save & Print Acknowledgment
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-
