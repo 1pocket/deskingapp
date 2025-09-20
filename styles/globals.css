@@ -2,69 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Screen defaults ---------- */
-body {
-  @apply bg-gray-100 text-gray-800 font-sans;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* Screen-only helpers */
+.no-print {}
+.hide-on-print {}
 
-h1, h2, h3, h4 { @apply font-semibold text-gray-900; }
-.card { @apply bg-white rounded-2xl shadow p-6; }
-
-/* Tables */
-table { @apply border-collapse w-full; }
-th, td { @apply border-b border-gray-200 p-2; }
-th { @apply bg-gray-50 text-gray-700 font-medium; }
-td { @apply text-gray-800; }
-
-/* Buttons */
-button { @apply rounded-md px-4 py-2 font-medium transition; }
-button.primary   { @apply bg-blue-600 text-white hover:bg-blue-700; }
-button.secondary { @apply bg-gray-200 text-gray-700 hover:bg-gray-300; }
-button.danger    { @apply bg-red-600 text-white hover:bg-red-700; }
-
-/* Inputs */
-input, select, textarea { @apply rounded-md border border-gray-300 p-2 w-full text-sm; }
-input:focus, select:focus, textarea:focus { @apply outline-none ring-2 ring-blue-500 border-blue-500; }
-
-/* Utility hooks used in JSX */
-.no-print { }
-.hide-on-print { }
-
-/* Hide print-only header/footer while on screen */
+/* Hide print header/footer on screen */
 @media screen {
   .print-header, .print-footer { display: none; }
 }
 
-/* ---------- Print styles (customer view only) ---------- */
+/* Print only the #customer-print section, keep it to one page */
 @media print {
-  /* Page size & margins */
   @page { size: Letter; margin: 0.35in; }
 
-  /* Hide everything by default */
   body * { visibility: hidden; }
-
-  /* Show only the customer view region */
   #customer-print, #customer-print * { visibility: visible; }
 
-  /* Position printable area and make it compact */
   #customer-print {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    left: 0; top: 0; width: 100%;
     background: #fff !important;
-    padding: 6px;                 /* compact */
+    padding: 6px;
     border-radius: 0 !important;
     box-shadow: none !important;
     line-height: 1.2;
-    transform: scale(0.92);       /* ensure 1 page; tweak 0.90–0.95 if needed */
+    transform: scale(0.92);
     transform-origin: top left;
     width: calc(100% / 0.92);
   }
 
-  /* Smaller typography & table spacing */
   #customer-print h1,
   #customer-print h2,
   #customer-print h3 { font-size: 15px !important; }
@@ -75,7 +41,6 @@ input:focus, select:focus, textarea:focus { @apply outline-none ring-2 ring-blue
   #customer-print th,
   #customer-print td { padding: 3px !important; }
 
-  /* Avoid breaks inside tables */
   #customer-print table,
   #customer-print thead,
   #customer-print tbody,
@@ -86,14 +51,12 @@ input:focus, select:focus, textarea:focus { @apply outline-none ring-2 ring-blue
     page-break-inside: avoid;
   }
 
-  /* Show print header/footer only in print */
   .print-header, .print-footer {
     display: block !important;
     visibility: visible !important;
     text-align: center;
   }
 
-  /* Footer in normal flow so it doesn't force another page */
   .print-footer {
     position: static;
     margin-top: 6px;
@@ -101,7 +64,6 @@ input:focus, select:focus, textarea:focus { @apply outline-none ring-2 ring-blue
     color: #555;
   }
 
-  /* Screen-only helpers */
-  .no-print { display: none !important; }
+  .no-print,
   .hide-on-print { display: none !important; }
 }
