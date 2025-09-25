@@ -20,20 +20,11 @@ export default function PrintablePencil() {
   }, [data]);
 
   const fmt = (v?: string | number) => (v === undefined || v === null ? "" : String(v).trim());
-
   const nice = (k: string) =>
-    k
-      .replace(/([A-Z])/g, " $1")
-      .replace(/_/g, " ")
-      .replace(/\s+/g, " ")
-      .replace(/\b\w/g, (m) => m.toUpperCase())
-      .trim();
-
+    k.replace(/([A-Z])/g, " $1").replace(/_/g, " ").replace(/\s+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase()).trim();
   const preferredDealOrder = [
-    "stock","vin","year","make","model","newOrUsed",
-    "msrp","price","sellingPrice","docFee","tax","taxes","tag","title","tagAndTitle",
-    "tradeValue","payoff","netTrade","cashDown","downPayment",
-    "amountFinanced","apr","rate","term","termMonths","payment","estPayment"
+    "stock","vin","year","make","model","newOrUsed","msrp","price","sellingPrice","docFee","tax","taxes","tag","title","tagAndTitle",
+    "tradeValue","payoff","netTrade","cashDown","downPayment","amountFinanced","apr","rate","term","termMonths","payment","estPayment"
   ];
 
   const dealPairs = useMemo(() => {
@@ -57,10 +48,7 @@ export default function PrintablePencil() {
 
   const { customer, deal, _meta } = data;
   const fullName = [fmt(customer?.firstName), fmt(customer?.lastName)].filter(Boolean).join(" ");
-  const address = [
-    fmt(customer?.address),
-    [fmt(customer?.city), fmt(customer?.state), fmt(customer?.zip)].filter(Boolean).join(" ")
-  ].filter(Boolean).join(", ");
+  const address = [fmt(customer?.address), [fmt(customer?.city), fmt(customer?.state), fmt(customer?.zip)].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const vehicleLine = [fmt(deal?.year), fmt(deal?.make), fmt(deal?.model)].filter(Boolean).join(" ");
 
   return (
@@ -151,12 +139,4 @@ export default function PrintablePencil() {
         .sig { display:flex; flex-direction:column; gap:6px; align-items:flex-start; font-size:13px; }
         .line { width:100%; height:1px; background:#111; margin-top:18px; }
         @media print {
-          :global(body) { margin: 0; }
-          .sheet { padding: 18px; }
-          .card { break-inside: avoid; }
-          .line { margin-top: 24px; }
-        }
-      `}</style>
-    </main>
-  );
-}
+          :global(body
