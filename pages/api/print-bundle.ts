@@ -30,10 +30,7 @@ function loadPdfBytes(file: string) {
   const p = path.join(process.cwd(), "public", "forms", file);
   return fs.readFileSync(p);
 }
-
-function label(v?: string) {
-  return (v ?? "").trim();
-}
+const label = (v?: string) => (v ?? "").trim();
 
 async function stampEveryPage(pdf: PDFDocument, header: string) {
   const pages = pdf.getPages();
@@ -51,9 +48,8 @@ async function drawOnFirstPage(
   pdf: PDFDocument,
   textPairs: Array<{ text: string; x: number; y: number; size?: number }>
 ) {
-  const pages = pdf.getPages();
-  if (!pages.length) return;
-  const page = pages[0];
+  const page = pdf.getPages()[0];
+  if (!page) return;
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   textPairs.forEach(({ text, x, y, size = 10 }) => {
     if (!text) return;
@@ -85,14 +81,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     deal.stock ? `Stock ${deal.stock}` : "",
     deal.newOrUsed ? deal.newOrUsed : "",
   ].filter(Boolean).join(" | ");
-  const header = [
-    name || "Customer",
-    contactBits,
-    addrBits,
-    idBits,
-    vehicleBits,
-    new Date().toLocaleDateString(),
-  ].filter(Boolean).join("  •  ");
+  const header = [name || "Customer", contactBits, addrBits, idBits, vehicleBits, new Date().toLocaleDateString()]
+    .filter(Boolean).join("  •  ");
 
   for (const fname of FORM_PATHS) {
     const basePdf = await PDFDocument.load(loadPdfBytes(fname));
@@ -104,45 +94,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (mode === "filled") {
       if (fname === "Flying 50.pdf") {
         await drawOnFirstPage(basePdf, [
-          { text: new Date().toLocaleDateString(), x: 80, y: 740 },               // Date
-          { text: "Victory Honda of Jackson", x: 260, y: 740 },                   // Store
-          { text: name, x: 140, y: 705 },                                         // Customer name
-          { text: [label(deal.year), label(deal.make), label(deal.model)].filter(Boolean).join(" "), x: 140, y: 650 },
-          { text: deal.newOrUsed ?? "", x: 100, y: 630 },
-          { text: label(deal.stock), x: 260, y: 630 },
-          { text: label(deal.vin), x: 140, y: 610 },
-        ]);
-      }
-      if (fname === "Social Release.pdf") {
-        await drawOnFirstPage(basePdf, [
-          { text: name, x: 110, y: 735 },
-          { text: label(deal.vin), x: 420, y: 735 },
-          { text: label(customer.cell), x: 110, y: 718 },
-        ]);
-      }
-      if (fname === "Tag Reg Form.pdf") {
-        await drawOnFirstPage(basePdf, [
-          { text: name, x: 120, y: 720 },
-          { text: label(customer.address), x: 120, y: 700 },
-          { text: `${label(customer.city)}${customer.city ? ", " : ""}${label(customer.state)} ${label(customer.zip)}`.trim(), x: 120, y: 682 },
-        ]);
-      }
-      if (fname === "Insurance and Payoff.pdf") {
-        await drawOnFirstPage(basePdf, [
-          { text: [label(deal.year), label(deal.make), label(deal.model)].filter(Boolean).join(" "), x: 140, y: 720 },
-          { text: label(deal.vin), x: 140, y: 703 },
-          { text: name, x: 60, y: 595 },
-          { text: label(customer.cell), x: 60, y: 578 },
-        ]);
-      }
-    }
-
-    const copied = await out.copyPages(basePdf, basePdf.getPageIndices());
-    copied.forEach((p) => out.addPage(p));
-  }
-
-  const pdfBytes = await out.save();
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=\"sales-bundle.pdf\"");
-  res.send(Buffer.from(pdfBytes));
-}
+          { text: new Date().toLocaleDateString(), x: 80, y: 740 },
+          { text: "Victory Honda of Jackson", x: 260, y: 740 },
+          { text: name, x: 140, y: 705 },
+          { text: [label(deal.year), label(deal.make), label(deal.model)].filter(Boolea
