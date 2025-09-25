@@ -1,5 +1,10 @@
 // pages/index.js
 import { useMemo, useRef, useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+
+// Load print buttons client-side (they use localStorage/window)
+const PrintBundleButton = dynamic(() => import("../src/components/PrintBundleButton"), { ssr: false });
+const PrintPencilButton = dynamic(() => import("../src/components/PrintPencilButton"), { ssr: false });
 
 /* ---------- FINANCE MATH ---------- */
 // Monthly payment: PMT = r*PV / (1 - (1+r)^-n), r = APR/12
@@ -212,8 +217,8 @@ export default function Home() {
   const tradeEquity = Math.max(tradeAllowance - payoff, 0);
 
   // Fees & required package (included on all vehicles)
-  const [docFee, setDocFee] = useState(699); // adjust default here if needed
-  const [titleFee, setTitleFee] = useState(89);
+  const [docFee, setDocFee] = useState(799); // ← default updated
+  const [titleFee, setTitleFee] = useState(101); // ← default updated (Tag/Title)
   const [tempTag, setTempTag] = useState(5);
   const [protectionPkgName] = useState("Victory Protection Package (included)");
   const [protectionPkgAmt] = useState(2998); // INCLUDED addendum
@@ -249,6 +254,14 @@ export default function Home() {
   const [agreedTerm, setAgreedTerm] = useState(72);
   const [agreedSigData, setAgreedSigData] = useState("");
   const [agreedOption, setAgreedOption] = useState("combo"); // base | maint | connect | gap | vsc | full | combo
+
+  // Vehicle identifiers (for print headers)
+  const [year, setYear] = useState("");
+  const [make, setMake] = useState("");
+  const [model, setModel] = useState("");
+  const [vin, setVin] = useState("");
+  const [stock, setStock] = useState("");
+  const [newOrUsed, setNewOrUsed] = useState("Used");
 
   function updateTerm(i, v) {
     const copy = [...terms];
@@ -360,6 +373,21 @@ export default function Home() {
     isTNMode, tnCapEnabled, stateRate, localRate, singleArticleRate,
     selMaint, selConnect, selGap, selVsc
   ]);
+
+  // Build the "pencil" snapshot for printing features
+  const pencil = useMemo(() => {
+    const first = (custName || "").trim().split(" ")[0] || "";
+    const last = (custName || "").trim().split(" ").slice(1).join(" ");
+    return {
+      deal: { year, make, model, vin, stock, newOrUsed },
+      customer: {
+        firstName: first,
+        lastName: last,
+        cell: custPhone || "",
+        email: custEmail || "",
+      },
+    };
+  }, [year, make, model, vin, stock, newOrUsed, custName, custPhone, custEmail]);
 
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-10">
@@ -539,6 +567,50 @@ export default function Home() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Vehicle / Print */}
+          <div className="bg-white rounded-2xl shadow p-4 space-y-3">
+            <h2 className="font-semibold">Vehicle / Print</h2>
+            <div className="grid grid-cols-3 gap-3">
+              <label className="text-sm">
+                <div className="font-medium">Year</div>
+                <input className="mt-1 w-full rounded-md border p-2" value={year} onChange={(e)=>setYear(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                <div className="font-medium">Make</div>
+                <input className="mt-1 w-full rounded-md border p-2" value={make} onChange={(e)=>setMake(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                <div className="font-medium">Model</div>
+                <input className="mt-1 w-full rounded-md border p-2" value={model} onChange={(e)=>setModel(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                <div className="font-medium">VIN</div>
+                <input className="mt-1 w-full rounded-md border p-2" value={vin} onChange={(e)=>setVin(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                <div className="font-medium">Stock</div>
+                <input className="mt-1 w-full rounded-md border p-2" value={stock} onChange={(e)=>setStock(e.target.value)} />
+              </label>
+              <label className="text-sm">
+                <div className="font-medium">Type</div>
+                <select className="mt-1 w-full rounded-md border p-2" value={newOrUsed} onChange={(e)=>setNewOrUsed(e.target.value)}>
+                  <option>Used</option>
+                  <option>New</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <PrintBundleButton state={pencil} />
+              <PrintPencilButton state={pencil} />
+            </div>
+
+            <p className="text-xs text-gray-500">
+              The Sales Bundle PDF always prints a header with the customer & vehicle info above.
+              “Filled” mode also drops key fields onto page 1 of each form (you can nudge coords later).
+            </p>
           </div>
         </div>
 
