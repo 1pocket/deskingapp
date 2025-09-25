@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { PencilState } from "../../types";
+import type { PencilState } from "../../src/types";
 
 type Snapshot = PencilState & { _meta?: { savedAt?: string } };
 
@@ -13,7 +13,6 @@ export default function PrintablePencil() {
     } catch {}
   }, []);
 
-  // Auto-print shortly after mount
   useEffect(() => {
     if (!data) return;
     const t = setTimeout(() => window.print(), 400);
@@ -22,7 +21,6 @@ export default function PrintablePencil() {
 
   const fmt = (v?: string | number) => (v === undefined || v === null ? "" : String(v).trim());
 
-  // Nicely title-case arbitrary keys for the "Deal Numbers" list
   const nice = (k: string) =>
     k
       .replace(/([A-Z])/g, " $1")
@@ -31,7 +29,6 @@ export default function PrintablePencil() {
       .replace(/\b\w/g, (m) => m.toUpperCase())
       .trim();
 
-  // Which deal keys should we show if present?
   const preferredDealOrder = [
     "stock","vin","year","make","model","newOrUsed",
     "msrp","price","sellingPrice","docFee","tax","taxes","tag","title","tagAndTitle",
@@ -39,14 +36,12 @@ export default function PrintablePencil() {
     "amountFinanced","apr","rate","term","termMonths","payment","estPayment"
   ];
 
-  // Build an ordered list of [label, value] to render
   const dealPairs = useMemo(() => {
     if (!data?.deal) return [];
     const d = data.deal as Record<string, any>;
     const keys = new Set(Object.keys(d).filter((k) => d[k] !== undefined && d[k] !== null && d[k] !== ""));
     const ordered: string[] = [];
     preferredDealOrder.forEach((k) => keys.has(k) && ordered.push(k));
-    // any extra keys not in our preferred list
     keys.forEach((k) => { if (!ordered.includes(k)) ordered.push(k); });
     return ordered.map((k) => [nice(k), fmt(d[k])] as const);
   }, [data]);
