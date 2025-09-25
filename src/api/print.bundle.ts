@@ -16,7 +16,7 @@ type Payload = {
     stock?: string; year?: string; make?: string; model?: string; vin?: string; newOrUsed?: "New" | "Used";
   };
   mode?: "blank" | "filled";
-  stamp?: boolean; // if true, draw a header on every page (always prints customer info)
+  stamp?: boolean; // draw a header with customer/vehicle info on every page
 };
 
 const FORM_PATHS = [
@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const out = await PDFDocument.create();
 
-  // Build stamp header (ALWAYS prints customer info on the bundle)
+  // Header (ALWAYS prints customer info on the bundle)
   const name = `${label(customer.firstName)} ${label(customer.lastName)}`.trim();
   const contactBits = [label(customer.cell), label(customer.email)].filter(Boolean).join(" • ");
   const addrBits = [label(customer.address), `${label(customer.city)} ${label(customer.state)} ${label(customer.zip)}`.trim()]
@@ -97,10 +97,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   for (const fname of FORM_PATHS) {
     const basePdf = await PDFDocument.load(loadPdfBytes(fname));
 
-    // 1) Always stamp customer info on every page
+    // 1) Stamp customer info at top of every page
     if (stamp) await stampEveryPage(basePdf, header);
 
-    // 2) If in filled mode, add some key fields to page 1 (adjust coordinates after a test print)
+    // 2) In filled mode, write some key fields onto page 1 (adjust coords after a test print)
     if (mode === "filled") {
       if (fname === "Flying 50.pdf") {
         await drawOnFirstPage(basePdf, [
@@ -125,9 +125,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           { text: name, x: 120, y: 720 },
           { text: label(customer.address), x: 120, y: 700 },
           { text: `${label(customer.city)}${customer.city ? ", " : ""}${label(customer.state)} ${label(customer.zip)}`.trim(), x: 120, y: 682 },
-          // Example: to mark a checkbox, draw an "X" at the right coords
-          // { text: "X", x: 135, y: 660 }, // I DO live in city
-          // { text: "X", x: 270, y: 660 }, // I DO NOT live in city
         ]);
       }
       if (fname === "Insurance and Payoff.pdf") {
