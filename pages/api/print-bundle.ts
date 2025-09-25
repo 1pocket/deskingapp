@@ -16,7 +16,7 @@ type Payload = {
     stock?: string; year?: string; make?: string; model?: string; vin?: string; newOrUsed?: "New" | "Used";
   };
   mode?: "blank" | "filled";
-  stamp?: boolean; // draw a header with customer/vehicle info on every page
+  stamp?: boolean;
 };
 
 const FORM_PATHS = [
@@ -26,18 +26,14 @@ const FORM_PATHS = [
   "Insurance and Payoff.pdf",
 ];
 
-function loadPdfBytes(file: string) {
-  const p = path.join(process.cwd(), "public", "forms", file);
-  return fs.readFileSync(p);
-}
 const label = (v?: string) => (v ?? "").trim();
+const loadPdfBytes = (file: string) => fs.readFileSync(path.join(process.cwd(), "public", "forms", file));
 
 async function stampEveryPage(pdf: PDFDocument, header: string) {
   const pages = pdf.getPages();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   pages.forEach((page) => {
-    const w = page.getWidth();
-    const h = page.getHeight();
+    const w = page.getWidth(), h = page.getHeight();
     page.drawRectangle({ x: 0, y: h - 28, width: w, height: 28, color: rgb(0.95, 0.95, 0.95) });
     page.drawLine({ start: { x: 0, y: h - 28 }, end: { x: w, y: h - 28 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
     page.drawText(header, { x: 12, y: h - 20, size: 9, font, color: rgb(0, 0, 0) });
@@ -86,15 +82,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   for (const fname of FORM_PATHS) {
     const basePdf = await PDFDocument.load(loadPdfBytes(fname));
-
-    // 1) Stamp customer info at top of every page
     if (stamp) await stampEveryPage(basePdf, header);
 
-    // 2) In filled mode, write some key fields onto page 1 (adjust coords after a test print)
     if (mode === "filled") {
       if (fname === "Flying 50.pdf") {
         await drawOnFirstPage(basePdf, [
           { text: new Date().toLocaleDateString(), x: 80, y: 740 },
           { text: "Victory Honda of Jackson", x: 260, y: 740 },
           { text: name, x: 140, y: 705 },
-          { text: [label(deal.year), label(deal.make), label(deal.model)].filter(Boolea
+          { text: [label(deal.year), label(deal.make), label(deal.model)].filter(Boolean).join(" "), x: 140, y: 650 },
+          { text: deal.newOrUsed ?? "", x: 100, y: 630 },
+          { text: label(deal.stock), x: 260, y: 630 },
+          { text: label(deal.vin), x: 140, y: 610 },
+        ]);
+      }
+      if (fname === "Social Release.pdf") {
+        await drawOnFirstPage(basePdf, [
+          { text: name, x: 110, y: 735 },
+          { text: label(deal.vin), x: 420, y: 735 },
+          { text: label(customer.cell), x: 110, y: 718 },
+        ]);
+      }
+      if (fname === "Tag Reg Form.pdf") {
+        await drawOnFirstPage(basePdf, [
+          { text: name, x: 120, y: 720 },
+          { text: label(customer.address), x: 120, y: 700 },
+          { text: `${label(customer.city)}${customer.city ? ", " : ""}${label(customer.state)} ${label(customer.zip)}`.trim(), x: 120, y: 682 },
+        ]);
+      }
+      if (fname === "Insurance and Payoff.pdf") {
+        await drawOnFirstPage(basePdf, [
+          { text: [label(deal.year), label(deal.make), label(deal.model)].filter(Boolean).join(" "), x: 140, y: 720 },
+          { text: label(deal.vin), x: 140, y: 703 },
+          { text: name, x: 60, y: 595 },
+          { text: label(customer.cell), x: 60, y: 578 },
+        ]);
+      }
+    }
+
+    const copied = await out.copyPages(basePdf, basePdf.getPageIndices());
+    copied.forEach((p) => out.addPage(p));
+  }
+
+  const pdfBytes = await out.save();
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "inline; filename=\"sales-bundle.pdf\"");
+  res.send(Buffer.from(pdfBytes));
+}
