@@ -1,38 +1,56 @@
-import type { PencilState } from "../types";
+// src/components/PrintBundleButton.tsx
+import { useState } from "react";
 
-export default function PrintBundleButton({ state }: { state: PencilState }) {
+export default function PrintBundleButton({ state }: { state: any }) {
+  const [loading, setLoading] = useState(false);
+
   const onClick = async () => {
     try {
+      setLoading(true);
       const payload = {
-        customer: state.customer || {},
-        deal: state.deal || {},
-        mode: "filled", // "blank" also supported by the API
-        stamp: true,
+        customer: state?.customer || {},
+        deal: state?.deal || {},
+        mode: "filled", // overlay key fields on page 1 of each form
+        stamp: true,    // gray header with customer & vehicle info on every page
       };
-      const res = await fetch("/api/print-bundle", {
+
+      const resp = await fetch("/api/print-bundle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const t = await res.text();
-        alert("Could not generate bundle: " + t);
-        return;
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || "Failed to generate the PDF bundle");
       }
-      const blob = await res.blob();
+
+      const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err: any) {
-      alert("Bundle failed: " + err?.message ?? String(err));
+      // FIX: parenthesize so ?? applies to err?.message, not the concatenated string
+      alert("Bundle failed: " + (err?.message ?? String(err)));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <button onClick={onClick} className="btn">
-      Print Sales Bundle (PDF)
+    <button onClick={onClick} disabled={loading} className="btn">
+      {loading ? "Building…" : "Print Sales Bundle (PDF)"}
       <style jsx>{`
-        .btn { background:#111827; color:#fff; border-radius:10px; padding:10px 14px; }
+        .btn {
+          background: #111827;
+          color: #fff;
+          border-radius: 10px;
+          padding: 10px 14px;
+        }
+        .btn[disabled] {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
       `}</style>
     </button>
   );
