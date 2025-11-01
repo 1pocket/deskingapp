@@ -98,8 +98,10 @@ function ProductMenuTable({ terms, scenarios, highlightFull = true }) {
                 const cell = scenarios[m][c.key];
                 const emphasize = highlightFull && c.key === "full";
                 return (
-                  <td key={c.key}
-                      className={`p-2 text-right tabular-nums border-b ${emphasize ? "bg-yellow-50 font-semibold" : ""}`}>
+                  <td
+                    key={c.key}
+                    className={`p-2 text-right tabular-nums border-b ${emphasize ? "bg-yellow-50 font-semibold" : ""}`}
+                  >
                     ${cell.payment.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo
                     <div className="text-[11px] text-gray-500">
                       {c.key === "base" ? "Base" : `+${cell.delta.toLocaleString(undefined, { minimumFractionDigits: 2 })}/mo`}
@@ -168,7 +170,7 @@ function SignaturePad({ onChange }) {
 }
 
 /* ---------- MAIN UI ---------- */
-export default function Home() {
+function HomePage() {
   // Tabs / “file folder” look
   const [activeTab, setActiveTab] = useState("payments"); // payments | customer | vehicle
   const openCustomer = () => { setActiveTab("customer"); setShowCustomerModal(true); };
@@ -240,7 +242,6 @@ export default function Home() {
 
   // Vehicle identifiers (for print headers)
   const [year, setYear] = useState("");
-  the 
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [vin, setVin] = useState("");
@@ -627,7 +628,7 @@ export default function Home() {
 
             {/* Printable acknowledgment */}
             <div className="mt-6 border rounded p-3">
-              <h4 className="font-semibold mb-2">Customer Acknowledgment (Non-Legal)</h4>
+              <h4 className="font-semibold mb-2">Customer Acknowledgment</h4>
               <p className="text-sm">
                 Name: <strong>{custName || "_____"} </strong>&nbsp;•&nbsp;
                 Phone: <strong>{custPhone || "_____"} </strong>&nbsp;•&nbsp;
@@ -650,11 +651,11 @@ export default function Home() {
                 }</strong>
               </p>
               <div className="mt-2">
-                <div className="text-xs text-gray-500 mb-1">Signature (non-legal):</div>
+                <div className="text-xs text-gray-500 mb-1">Signature:</div>
                 {agreedSigData ? (<img src={agreedSigData} alt="signature" style={{ height: 60 }} />) : (<div className="h-16 border rounded"></div>)}
               </div>
               <p className="text-[11px] text-gray-500 mt-2">
-                This acknowledgment is not a retail installment contract nor a legal e-signature; it reflects the customer’s preferred option to streamline the process with the Finance office. All financing subject to credit approval and final lender terms.
+                This is a customer acknowledgment used to streamline your visit with Finance. All financing is subject to credit approval and final lender terms.
               </p>
             </div>
           </div>
@@ -702,7 +703,7 @@ export default function Home() {
                   <div className="font-medium mb-1">Sign Below</div>
                   <SignaturePad onChange={setAgreedSigData} />
                   <div className="text-xs text-gray-500 mt-1">
-                    This is not a legal e-signature. It’s an acknowledgment to speed up your visit with Finance.
+                    This is a customer acknowledgment to speed up your visit with Finance.
                   </div>
                 </div>
               </div>
@@ -777,3 +778,6 @@ export default function Home() {
     </div>
   );
 }
+
+// Make page client-only to avoid prerender errors
+export default dynamic(() => Promise.resolve(HomePage), { ssr: false });
