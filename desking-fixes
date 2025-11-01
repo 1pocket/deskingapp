@@ -1,0 +1,85 @@
+--- a/pages/index.js
++++ b/pages/index.js
+@@ -69,7 +69,7 @@
+   );
+ }
+ 
+-function ProductMenuTable({ terms, scenarios, highlightFull = true }) {
++function ProductMenuTable({ terms, scenarios, highlightFull = true, onPick, selected }) {
+   const cols = [
+     { key: "base", label: "Base" },
+     { key: "maint", label: "+CarDoc Maint" },
+@@ -171,6 +171,7 @@
+ export default function Home() {
+   // Tabs / “file folder” look
+   const [activeTab, setActiveTab] = useState("payments"); // payments | customer | vehicle
++  const [salesMode, setSalesMode] = useState(true);
+   const openCustomer = () => { setActiveTab("customer"); setShowCustomerModal(true); };
+ 
+   // Vehicle & program inputs
+@@ -363,8 +364,14 @@
+   return (
+     <div className="min-h-screen bg-gray-50 px-6 py-10">
+       <div className="mx-auto max-w-6xl print:max-w-none">
++        <div className="no-print flex justify-end mb-2">
++          <label className="text-sm flex items-center gap-2 cursor-pointer">
++            <input type="checkbox" checked={salesMode} onChange={()=>setSalesMode(v=>!v)} />
++            <span>Sales Mode (Customer View)</span>
++          </label>
++        </div>
+         {/* file-folder tabs */}
+-        <nav className="no-print flex items-end gap-2 mb-4">
++        <nav className={`no-print flex items-end gap-2 mb-4 ${salesMode ? "hidden" : ""}`}>
+           <button onClick={openCustomer}
+             className={`px-3 py-2 rounded-t-xl border border-gray-300 ${activeTab==="customer" ? "bg-amber-100" : "bg-gray-100"}`}>
+             Customer
+@@ -431,7 +438,7 @@
+         </div>
+ 
+         {/* INPUTS + SETTINGS */}
+-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
++        <div className={`mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4 ${salesMode ? "hidden" : ""}`}>
+           {/* Deal basics */}
+           <div className="bg-white rounded-2xl shadow p-4 space-y-3">
+             <h2 className="font-semibold">Deal Basics</h2>
+@@ -592,6 +599,13 @@
+             </div>
+ 
+             <h3 className="font-semibold">Customer View</h3>
++            <div className="no-print sticky top-2 z-10 flex justify-end">
++              <div className="rounded-xl bg-black text-white px-4 py-2 text-sm shadow">
++                Agreed Payment:&nbsp;
++                <strong>{(() => { const rec = productMenu.byTerm?.[agreedTerm]?.[agreedOption]; return rec ? `$${rec.payment.toLocaleString(undefined,{minimumFractionDigits:2})}/mo` : "—"; })()}</strong>
++                &nbsp;<span className="opacity-70">({agreedTerm} mo, {agreedOption})</span>
++              </div>
++            </div>
+             <p className="text-sm text-gray-600">
+               We’ve prepared options using a price of <strong>${salePrice.toLocaleString()}</strong>, an APR of{" "}
+               <strong>{aprPct}%</strong>, and <strong>${(productMenu.down||0).toLocaleString()}</strong> down.
+@@ -603,7 +617,7 @@
+ 
+             <div className="mt-6">
+               <h3 className="font-semibold">Ownership Protection Options (using ${ (productMenu.down||0).toLocaleString() } down)</h3>
+-              <ProductMenuTable terms={terms} scenarios={productMenu.byTerm} highlightFull />
++              <ProductMenuTable terms={terms} scenarios={productMenu.byTerm} highlightFull onPick={(term,opt)=>{ setAgreedTerm(term); setAgreedOption(opt); }} selected={{term:agreedTerm, option:agreedOption}} />
+ 
+               <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
+                 <div>
+@@ -650,7 +664,7 @@
+                 }</strong>
+               </p>
+               <div className="mt-2">
+-                <div className="text-xs text-gray-500 mb-1">Signature (non-legal):</div>
++                <div className="text-xs text-gray-500 mb-1">Signature:</div>
+                 {agreedSigData ? (<img src={agreedSigData} alt="signature" style={{ height: 60 }} />) : (<div className="h-16 border rounded"></div>)}
+               </div>
+               <p className="text-[11px] text-gray-500 mt-2">
+@@ -702,7 +716,7 @@
+                   <div className="font-medium mb-1">Sign Below</div>
+                   <SignaturePad onChange={setAgreedSigData} />
+                   <div className="text-xs text-gray-500 mt-1">
+-                    This is not a legal e-signature. It’s an acknowledgment to speed up your visit with Finance.
++                    This is a customer acknowledgment to speed up your visit with Finance.
+                   </div>
+                 </div>
+               </div>
